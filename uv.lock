@@ -151,7 +151,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fastmcp-calculator-agent"
+name = "fastmcp-agent-framework"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

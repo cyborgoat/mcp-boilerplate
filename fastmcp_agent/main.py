@@ -13,7 +13,7 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
-from .agent import CalculatorAgent
+from .examples.calculator import CalculatorAgent
 
 # Load environment variables from .env file
 load_dotenv()
@@ -128,7 +128,7 @@ async def main_async() -> int:
         root_logger.setLevel(logging.DEBUG)
         logger.debug("Verbose logging enabled")
     
-    # Initialize agent
+    # Initialize agent (using calculator as default example)
     agent: Optional[CalculatorAgent] = None
     
     try:

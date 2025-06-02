@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple test script to verify the FastMCP Calculator Agent setup.
+Simple test script to verify the FastMCP Agent Framework setup.
 """
 
 import sys
@@ -33,10 +33,10 @@ def test_imports():
         return False
     
     try:
-        import calculator_agent
-        print("✅ Calculator Agent package imported successfully")
+        import fastmcp_agent
+        print("✅ FastMCP Agent Framework imported successfully")
     except ImportError as e:
-        print(f"❌ Failed to import Calculator Agent: {e}")
+        print(f"❌ Failed to import FastMCP Agent Framework: {e}")
         return False
     
     return True
@@ -46,7 +46,7 @@ def test_basic_functionality():
     print("\nTesting calculator tools...")
     
     try:
-        from calculator_agent.agent import CalculatorAgent
+        from fastmcp_agent.examples.calculator import CalculatorAgent
         
         # Create agent instance
         agent = CalculatorAgent(show_thinking=False, enable_streaming=False)
@@ -108,13 +108,13 @@ def check_environment():
     if os.path.exists(".env"):
         print("✅ .env file found")
     else:
-        print("⚠️  No .env file found (you'll need to create one with your Qwen API key)")
+        print("⚠️  No .env file found (you'll need to create one with your LLM API key)")
     
     return True
 
 def main():
     """Run all tests."""
-    print("FastMCP Calculator Agent - Setup Test")
+    print("FastMCP Agent Framework - Setup Test")
     print("=" * 50)
     
     success = True
@@ -128,7 +128,8 @@ def main():
         print("🎉 All tests passed! Your setup is working correctly.")
         print("\nNext steps:")
         print("1. Create a .env file with your LLM provider API key")
-        print("2. Run: uv run calculator-agent")
+        print("2. Run: uv run fastmcp-agent")
+        print("3. Or try the calculator agent: uv run calculator-agent")
     else:
         print("❌ Some tests failed. Please check the errors above.")
         return 1

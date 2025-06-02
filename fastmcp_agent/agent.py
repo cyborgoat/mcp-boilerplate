@@ -1,41 +1,40 @@
 """
-Calculator Agent for FastMCP Framework.
+Generic Base Agent for FastMCP Framework.
 
-This module implements a specialized calculator agent that demonstrates how to build
-domain-specific agents using the FastMCP framework with LLM integration.
+This module provides a flexible base agent class that can be extended to create
+specialized agents for different domains and use cases.
 """
 
 import asyncio
 import json
 import logging
-import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
+from abc import ABC, abstractmethod
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
-from rich.markdown import Markdown
 
 from fastmcp import Client
 from .llm_client import create_llm_client, LLMClient
-from .mcp_server import mcp_server
 
 logger = logging.getLogger(__name__)
 console = Console()
 
 
-class CalculatorAgent:
+class FastMCPAgent(ABC):
     """
-    Specialized calculator agent that demonstrates FastMCP framework usage.
+    Abstract base class for FastMCP agents.
     
-    This agent connects to a calculator MCP server and uses an LLM to provide
-    intelligent mathematical computation assistance. It serves as an example
-    of how to build domain-specific agents with the FastMCP framework.
+    This class provides the core functionality for building intelligent agents
+    that integrate with FastMCP servers and LLM providers. Subclasses should
+    implement the abstract methods to define domain-specific behavior.
     
     Features:
-    - Mathematical calculations via MCP tools
-    - Natural language interaction
-    - Step-by-step problem solving
-    - Support for complex multi-step calculations
+    - MCP server integration
+    - LLM communication with tool calling
+    - Conversation management
+    - Rich console interface
+    - Configurable system prompts
     
     Attributes:
         show_thinking (bool): Whether to display model thinking
@@ -43,56 +42,75 @@ class CalculatorAgent:
         llm_client (LLMClient): The LLM client for natural language processing
         mcp_client (Client): The FastMCP client for tool execution
         conversation_history (List[Dict]): Chat history for context
+        agent_name (str): Display name for the agent
     """
     
-    def __init__(self, show_thinking: bool = False, enable_streaming: bool = True):
+    def __init__(
+        self, 
+        show_thinking: bool = False, 
+        enable_streaming: bool = True,
+        agent_name: str = "FastMCP Agent"
+    ):
         """
-        Initialize the calculator agent.
+        Initialize the base agent.
         
         Args:
             show_thinking: Whether to display model thinking process
             enable_streaming: Whether to enable streaming responses
+            agent_name: Display name for the agent
         """
         self.show_thinking = show_thinking
         self.enable_streaming = enable_streaming
+        self.agent_name = agent_name
         self.llm_client: Optional[LLMClient] = None
         self.mcp_client: Optional[Client] = None
         self.conversation_history: List[Dict[str, str]] = []
 
-    def _get_calculator_system_prompt(self) -> str:
+    @abstractmethod
+    def get_system_prompt(self) -> str:
         """
-        Get the specialized system prompt for calculator tasks.
+        Get the system prompt for this agent.
+        
+        Subclasses must implement this method to define their domain-specific
+        system prompt that guides the LLM's behavior.
         
         Returns:
-            Calculator-specific system prompt
+            System prompt string
         """
-        return """
-You are a helpful calculator assistant with access to calculator tools for mathematical operations.
+        pass
 
-When a user asks a mathematical question:
-1. Break down complex calculations into simpler steps
-2. Use the available calculator tools to perform calculations
-3. Explain your reasoning process clearly
-4. Provide the final answer
+    @abstractmethod
+    def get_mcp_server(self) -> Any:
+        """
+        Get the MCP server instance for this agent.
+        
+        Subclasses must implement this method to provide their specific
+        MCP server that contains the tools for their domain.
+        
+        Returns:
+            MCP server instance
+        """
+        pass
 
-Available tools:
-- add(a, b): Add two numbers
-- subtract(a, b): Subtract b from a
-- multiply(a, b): Multiply two numbers
-- divide(a, b): Divide a by b
-- power(a, b): Raise a to the power of b
-- sqrt(a): Calculate square root of a
-
-Always use tools for calculations rather than doing math manually.
-Show your work step by step so users can understand the solution process.
-"""
+    @abstractmethod
+    def get_welcome_message(self) -> str:
+        """
+        Get the welcome message displayed to users.
+        
+        Subclasses should implement this method to provide a domain-specific
+        welcome message that explains the agent's capabilities.
+        
+        Returns:
+            Welcome message string
+        """
+        pass
 
     async def initialize(self) -> None:
         """
         Initialize the agent components.
         
         This method:
-        1. Creates the LLM client with calculator-specific configuration
+        1. Creates the LLM client with domain-specific configuration
         2. Connects to the MCP server
         3. Registers available tools with the LLM
         4. Sets up tool execution
@@ -101,33 +119,47 @@ Show your work step by step so users can understand the solution process.
             Exception: If initialization fails
         """
         try:
-            # Initialize MCP client (connects to our calculator MCP server)
+            logger.info(f"🚀 Initializing {self.agent_name}...")
+            
+            # Initialize MCP client with domain-specific server
+            logger.debug("🔌 Setting up MCP server connection...")
+            mcp_server = self.get_mcp_server()
             self.mcp_client = Client(mcp_server)
             
-            # Initialize LLM client with calculator-specific system prompt
+            # Initialize LLM client with domain-specific system prompt
+            logger.debug("🧠 Creating LLM client...")
             self.llm_client = create_llm_client(
                 show_thinking=self.show_thinking,
-                system_prompt=self._get_calculator_system_prompt()
+                system_prompt=self.get_system_prompt()
             )
             
             # Connect to MCP server and get available tools
+            logger.debug("🔧 Connecting to MCP server and retrieving tools...")
             async with self.mcp_client:
                 mcp_tools = await self.mcp_client.list_tools()
-                logger.info(f"Retrieved {len(mcp_tools)} tools from MCP server: {[tool.name for tool in mcp_tools]}")
+                logger.info(f"📋 Retrieved {len(mcp_tools)} tools from MCP server: {[tool.name for tool in mcp_tools]}")
                 
                 # Convert MCP tools to OpenAI format for LLM
+                logger.debug("🔄 Converting MCP tools to OpenAI format...")
                 openai_tools = self._convert_mcp_tools_to_openai_format(mcp_tools)
                 
                 # Register tools with LLM client
+                logger.info(f"🔗 Registering {len(openai_tools)} tools with LLM client...")
                 self.llm_client.register_tools(openai_tools)
                 
                 # Set the tool executor to use MCP client
+                logger.debug("⚙️  Setting up tool executor...")
                 self.llm_client.set_tool_executor(self.execute_tool_via_mcp)
             
-            logger.info("Calculator agent initialized successfully")
+            logger.info(f"✅ {self.agent_name} initialized successfully")
+            logger.info(f"🤖 LLM: {self.llm_client.model} at {self.llm_client.base_url}")
+            logger.info(f"🔧 Tools available: {len(openai_tools)}")
+            logger.info(f"🧠 Thinking mode: {'enabled' if self.show_thinking else 'disabled'}")
+            logger.info(f"📡 Streaming: {'enabled' if self.enable_streaming else 'disabled'}")
             
         except Exception as e:
-            logger.error(f"Failed to initialize agent: {e}")
+            logger.error(f"❌ Failed to initialize agent: {e}")
+            logger.debug(f"❌ Full initialization error: {e}", exc_info=True)
             raise
 
     def _convert_mcp_tools_to_openai_format(self, mcp_tools) -> List[Dict[str, Any]]:
@@ -204,6 +236,8 @@ Show your work step by step so users can understand the solution process.
             user_input: The user's question or request
         """
         try:
+            logger.info(f"🔄 Processing user input: '{user_input}'")
+            
             # Add user message to history
             self.conversation_history.append({"role": "user", "content": user_input})
             
@@ -216,43 +250,70 @@ Show your work step by step so users can understand the solution process.
             )
             console.print(user_panel)
             
+            # Log the start of LLM interaction
+            logger.info(f"🤖 Sending request to LLM ({self.llm_client.model}) with {len(self.llm_client.tools) if hasattr(self.llm_client, 'tools') else 0} available tools")
+            
             # Generate response
             response_content = ""
+            tool_calls_made = False
             
-            console.print("\n🤖 Assistant:", style="bold green")
+            console.print(f"\n🤖 {self.agent_name}:", style="bold green")
+            
+            # Track if any tools were called during this interaction
+            original_tool_executor = self.llm_client.tool_executor
+            
+            async def logging_tool_executor(tool_name: str, parameters: dict) -> Any:
+                """Wrapper to log tool executions."""
+                nonlocal tool_calls_made
+                tool_calls_made = True
+                logger.info(f"🔧 LLM requested tool execution: {tool_name}")
+                logger.debug(f"🔧 Tool parameters: {parameters}")
+                result = await original_tool_executor(tool_name, parameters)
+                logger.info(f"✅ Tool {tool_name} completed, result returned to LLM")
+                return result
+            
+            # Temporarily replace the tool executor with our logging version
+            self.llm_client.tool_executor = logging_tool_executor
                 
-            async for chunk in self.llm_client.create_completion(
-                self.conversation_history,
-                stream=self.enable_streaming
-            ):
-                console.print(chunk, end="", style="green")
-                response_content += chunk
+            try:
+                async for chunk in self.llm_client.create_completion(
+                    self.conversation_history,
+                    stream=self.enable_streaming
+                ):
+                    console.print(chunk, end="", style="green")
+                    response_content += chunk
+            finally:
+                # Restore original tool executor
+                self.llm_client.tool_executor = original_tool_executor
                 
             console.print("\n")
+            
+            # Log the interaction summary
+            if tool_calls_made:
+                logger.info(f"📋 Interaction completed: LLM used tools to generate response")
+            else:
+                logger.info(f"💬 Interaction completed: LLM provided direct response (no tools used)")
+            
+            logger.debug(f"📝 Response length: {len(response_content)} characters")
             
             # Add assistant response to history
             self.conversation_history.append({"role": "assistant", "content": response_content})
             
         except Exception as e:
-            logger.error(f"Error processing user input: {e}")
+            logger.error(f"❌ Error processing user input: {e}")
+            logger.debug(f"❌ Full error details: {e}", exc_info=True)
             console.print(f"❌ Error: {str(e)}", style="bold red")
 
     async def run_interactive_session(self) -> None:
         """
-        Run an interactive chat session for calculator operations.
+        Run an interactive chat session.
         
-        This method provides a user-friendly interface for mathematical
-        calculations using natural language input.
+        This method provides a user-friendly interface for interacting with
+        the agent using natural language input.
         """
         console.print(Panel(
-            "🧮 Welcome to FastMCP Calculator Agent!\n\n"
-            "I can help you with mathematical calculations using FastMCP tools:\n"
-            "• Addition, Subtraction, Multiplication, Division\n"
-            "• Power operations and Square roots\n\n"
-            "Supports any OpenAI-compatible LLM provider (OpenAI, Qwen, Claude, Groq, etc.)\n"
-            "Ask me any math question, and I'll solve it step by step using the MCP server!\n"
-            "Type 'quit' or 'exit' to end the session.",
-            title="Calculator Agent",
+            self.get_welcome_message(),
+            title=self.agent_name,
             border_style="bright_blue",
             expand=False
         ))
@@ -262,7 +323,7 @@ Show your work step by step so users can understand the solution process.
                 user_input = Prompt.ask("\n[bold cyan]Your question[/bold cyan]")
                 
                 if user_input.lower() in ["quit", "exit", "bye"]:
-                    console.print("\n👋 Goodbye! Thanks for using Calculator Agent!", style="bold green")
+                    console.print(f"\n👋 Goodbye! Thanks for using {self.agent_name}!", style="bold green")
                     break
                 
                 if user_input.strip():

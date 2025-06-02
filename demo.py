@@ -1,21 +1,38 @@
 #!/usr/bin/env python3
 """
-Demo script to showcase the FastMCP Calculator Agent with LLM integration.
-Supports any OpenAI-compatible LLM provider (OpenAI, Qwen, Claude, Groq, etc.).
+Demo script for the FastMCP Agent Framework.
+
+This script demonstrates how to use the framework to build intelligent agents
+that integrate FastMCP servers with LLM providers. The calculator agent serves
+as a practical example of the framework's capabilities.
+
+Features demonstrated:
+- FastMCP server integration
+- Tool calling with LLM providers
+- Multi-step problem solving
+- OpenAI-compatible API support
 """
 
 import asyncio
 import sys
-from calculator_agent.agent import CalculatorAgent
+from fastmcp_agent.examples.calculator import CalculatorAgent
 
 async def demo():
-    """Run a demonstration of the calculator agent."""
-    print("🧮 FastMCP Calculator Agent Demo")
-    print("=" * 50)
-    print("Supports any OpenAI-compatible LLM provider!")
-    print("(OpenAI, Qwen, Claude, Groq, etc.)\n")
+    """
+    Run a demonstration of the FastMCP Agent Framework using the calculator agent.
     
-    # Create and initialize the agent
+    This demo shows how agents can:
+    1. Connect to MCP servers
+    2. Integrate with LLM providers
+    3. Execute tools through natural language
+    4. Handle complex multi-step problems
+    """
+    print("🚀 FastMCP Agent Framework Demo")
+    print("=" * 50)
+    print("Demonstrating intelligent agent capabilities!")
+    print("Using Calculator Agent as an example\n")
+    
+    # Create and initialize the calculator agent
     agent = CalculatorAgent(show_thinking=False, enable_streaming=False)
     
     try:
@@ -23,15 +40,15 @@ async def demo():
         await agent.initialize()
         print("✅ Agent initialized successfully!")
         
-        # Test questions
+        # Test questions demonstrating different capabilities
         test_questions = [
-            "What is 9 + 1053?",
-            "Calculate 15 * 23 + 7",
-            "What's the square root of 144?",
-            "Compute 2^8",
+            "What is 9 + 1053?",                    # Basic arithmetic
+            "Calculate 15 * 23 + 7",                # Multi-step calculation
+            "What's the square root of 144?",       # Special functions
+            "Compute 2^8",                          # Power operations
         ]
         
-        print(f"\n🤖 Testing {len(test_questions)} calculations...\n")
+        print(f"\n🤖 Testing {len(test_questions)} mathematical problems...\n")
         
         for i, question in enumerate(test_questions, 1):
             print(f"\n[Test {i}] Question: {question}")
@@ -55,11 +72,20 @@ async def demo():
             
         print("\n" + "=" * 50)
         print("✅ Demo completed successfully!")
-        print("The agent successfully used FastMCP to connect to the MCP server")
-        print("and execute calculator tools via your configured LLM provider!")
+        print("\nWhat was demonstrated:")
+        print("• FastMCP server integration")
+        print("• LLM tool calling capabilities")
+        print("• Multi-step problem solving")
+        print("• OpenAI-compatible API support")
+        print("• Natural language to tool execution")
+        print("\nThe framework is ready for building custom agents!")
         
     except Exception as e:
         print(f"❌ Error during demo: {e}")
+        print("\nTroubleshooting tips:")
+        print("• Check your .env file configuration")
+        print("• Verify your LLM API key and access")
+        print("• Ensure all dependencies are installed")
         return 1
     finally:
         await agent.cleanup()
